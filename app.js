@@ -28,61 +28,51 @@ function scoreToBL(score) {
 // Generate the Bookmarklet code
 function initBookmarklet() {
     var toolUrl = window.location.href.split('?')[0];
-    var rawJs = `javascript:(async function(){
-        try {
-            let gems = [];
-            let triggers = Array.from(document.querySelectorAll('[data-melt-tooltip-trigger]'));
-            if(triggers.length === 0) { alert('No gems found! Go to your character page on lostark.bible first.'); return; }
-            
-            const overlay = document.createElement('div');
-            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999999;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;flex-direction:column;font-family:sans-serif;';
-            overlay.innerHTML = '<div>Scanning Astrogems...</div><div id="bm-progress" style="font-size:16px;margin-top:10px;color:#80d0ff;">0 / ' + triggers.length + '</div>';
-            document.body.appendChild(overlay);
-
-            for(let i=0; i<triggers.length; i++) {
-                try {
-                    let t = triggers[i];
-                    document.getElementById('bm-progress').innerText = (i+1) + ' / ' + triggers.length;
-                    t.dispatchEvent(new MouseEvent('pointerenter', {bubbles:true}));
-                    t.dispatchEvent(new MouseEvent('mouseenter', {bubbles:true}));
-                    await new Promise(r => setTimeout(r, 10)); 
-                    let tooltip = document.querySelector('[data-melt-tooltip-content][data-state="open"]');
-                    if(tooltip) {
-                        let html = tooltip.innerHTML;
-                        if(html.includes('Astrogem:')) {
-                            let wpMatch = html.match(/Willpower Cost.*?<span>(\\d+)/);
-                            let wp = wpMatch ? parseInt(wpMatch[1]) : 0;
-                            let ptMatch = html.match(/(?:Order|Chaos) Points.*?<span>(\\d+)/);
-                            let cp = ptMatch ? parseInt(ptMatch[1]) : 0;
-                            let opts = [];
-                            let parts = html.split(/Lv\\.\\s*(\\d+)/);
-                            for(let j=1; j<parts.length; j+=2) {
-                                let lv = parseInt(parts[j]);
-                                let textAfter = parts[j+1] || '';
-                                let nameMatch = textAfter.match(/<span>([^<]+)/);
-                                let name = nameMatch ? nameMatch[1].trim() : 'Unknown';
-                                opts.push({name, lv});
-                            }
-                            gems.push({ wp, cp, opts });
-                        }
-                    }
-                    t.dispatchEvent(new MouseEvent('pointerleave', {bubbles:true}));
-                    t.dispatchEvent(new MouseEvent('mouseleave', {bubbles:true}));
-                } catch(err) { console.error(err); }
-            }
-            overlay.remove();
-            if(gems.length === 0) {
-                alert('Could not find any Astrogems. Make sure your Ark Grid is visible.');
-                return;
-            }
-            let payload = encodeURIComponent(JSON.stringify(gems));
-            window.location.href = '${toolUrl}?gems=' + payload;
-        } catch(e) { alert('Error: ' + e.message); }
-    })();`;
-    
-    var compressed = rawJs.replace(/\s*[\r\n]+\s*/g, ' ');
+    var fn = '(async function(){' +
+        'try{' +
+        'let gems=[];' +
+        'let triggers=Array.from(document.querySelectorAll("[data-melt-tooltip-trigger]"));' +
+        'if(!triggers.length){alert("No gems found! Go to your character page on lostark.bible first.");return;}' +
+        'const ov=document.createElement("div");' +
+        'ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999999;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;flex-direction:column;font-family:sans-serif;";' +
+        'ov.innerHTML="<div>Scanning Astrogems...</div><div id=bm-p style=\\"font-size:16px;margin-top:10px;color:#80d0ff;\\">0 / "+triggers.length+"</div>";' +
+        'document.body.appendChild(ov);' +
+        'for(let i=0;i<triggers.length;i++){' +
+            'try{' +
+            'let t=triggers[i];' +
+            'document.getElementById("bm-p").innerText=(i+1)+" / "+triggers.length;' +
+            't.dispatchEvent(new MouseEvent("pointerenter",{bubbles:true}));' +
+            't.dispatchEvent(new MouseEvent("mouseenter",{bubbles:true}));' +
+            'await new Promise(r=>setTimeout(r,10));' +
+            'let tip=document.querySelector("[data-melt-tooltip-content][data-state=\\"open\\"]");' +
+            'if(tip){' +
+                'let h=tip.innerHTML;' +
+                'if(h.includes("Astrogem:")){' +
+                    'let wm=h.match(/Willpower Cost.*?<span>(\\d+)/);' +
+                    'let wp=wm?parseInt(wm[1]):0;' +
+                    'let pm=h.match(/(?:Order|Chaos) Points.*?<span>(\\d+)/);' +
+                    'let cp=pm?parseInt(pm[1]):0;' +
+                    'let opts=[];' +
+                    'let pts=h.split(/Lv\\.\\s*(\\d+)/);' +
+                    'for(let j=1;j<pts.length;j+=2){' +
+                        'let lv=parseInt(pts[j]);' +
+                        'let nm=(pts[j+1]||"").match(/<span>([^<]+)/);' +
+                        'opts.push({name:nm?nm[1].trim():"Unknown",lv:lv});' +
+                    '}' +
+                    'gems.push({wp,cp,opts});' +
+                '}' +
+            '}' +
+            't.dispatchEvent(new MouseEvent("pointerleave",{bubbles:true}));' +
+            't.dispatchEvent(new MouseEvent("mouseleave",{bubbles:true}));' +
+            '}catch(e){console.error(e);}' +
+        '}' +
+        'ov.remove();' +
+        'if(!gems.length){alert("Could not find any Astrogems. Make sure your Ark Grid is visible.");return;}' +
+        'window.location.href="' + toolUrl + '?gems="+encodeURIComponent(JSON.stringify(gems));' +
+        '}catch(e){alert("Error: "+e.message);}' +
+    '})();';
     var btn = document.getElementById('bookmarklet-btn');
-    if (btn) btn.href = compressed;
+    if (btn) btn.href = 'javascript:' + fn;
 }
 
 // Check if we arrived via Bookmarklet redirect
