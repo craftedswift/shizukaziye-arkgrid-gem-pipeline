@@ -163,7 +163,7 @@ function checkUrlData() {
             
             if (minScore !== 999) {
                 var bl = scoreToBL(minScore);
-                var mbl = setBL(bl);
+                setBL(bl);
                 
                 // Clear the URL so it doesn't look messy
                 window.history.replaceState({}, document.title, window.location.pathname);
@@ -183,7 +183,7 @@ function checkUrlData() {
                         mathStr += '\n+ ' + minGemData.opt2Name + ' Lv.' + minGemData.opt2Lv + ' (' + minGemData.opt2Score.toFixed(2) + ')';
                     }
 
-                    alert('Successfully imported ' + gems.length + ' gems!\n\nWeakest Gem Score: ' + minScore.toFixed(2) + '\n\nMath Breakdown:\n' + mathStr + '\n\nSuggested Baseline Level set to: ' + mbl);
+                    alert('Successfully imported ' + gems.length + ' gems!\n\nWeakest Gem Score: ' + minScore.toFixed(2) + '\n\nMath Breakdown:\n' + mathStr + '\n\nSuggested Baseline Level set to: ' + bl);
                 }, 500);
             }
         } catch(e) {
