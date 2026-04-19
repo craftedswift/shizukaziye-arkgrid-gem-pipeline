@@ -21,11 +21,8 @@ const STAT_COEFFS = {
 };
 
 function scoreToBL(score) {
-    const thresholds = [-8, 1, 9, 18, 27, 36, 45, 54, 63, 72];
-    for (let i = 0; i < thresholds.length; i++) {
-        if (score <= thresholds[i]) return i;
-    }
-    return 10;
+    // User requested the suggested baseline be the ceiling of the score (e.g. 13.2 -> 14)
+    return Math.ceil(score);
 }
 
 // Generate the Bookmarklet code
@@ -34,8 +31,6 @@ function initBookmarklet() {
     var rawJs = `javascript:(async function(){
         try {
             let gems = [];
-            
-            // Specifically target the Ark Grid section
             let allTriggers = document.querySelectorAll('[data-melt-tooltip-trigger]');
             let gridHeader = Array.from(document.querySelectorAll('h2, h3, div, span, p')).find(el => el.textContent.trim() === 'Ark Grid');
             if (gridHeader) {
@@ -47,37 +42,29 @@ function initBookmarklet() {
                     allTriggers = container.querySelectorAll('[data-melt-tooltip-trigger]');
                 }
             }
-            
             const triggers = Array.from(allTriggers);
-            
             if(triggers.length === 0) { alert('No gems found! Go to your character page on lostark.bible first.'); return; }
-            
             const overlay = document.createElement('div');
             overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999999;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;flex-direction:column;font-family:sans-serif;';
             overlay.innerHTML = '<div>Scanning Astrogems...</div><div id="bm-progress" style="font-size:16px;margin-top:10px;color:#80d0ff;">0 / ' + triggers.length + '</div>';
             document.body.appendChild(overlay);
-
             for(let i=0; i<triggers.length; i++) {
                 try {
                     let t = triggers[i];
                     document.getElementById('bm-progress').innerText = (i+1) + ' / ' + triggers.length;
                     t.dispatchEvent(new MouseEvent('pointerenter', {bubbles:true}));
                     t.dispatchEvent(new MouseEvent('mouseenter', {bubbles:true}));
-                    
                     await new Promise(r => setTimeout(r, 10)); 
-                    
                     let tooltip = document.querySelector('[data-melt-tooltip-content][data-state="open"]');
                     if(tooltip) {
                         let html = tooltip.innerHTML;
                         if(html.includes('Astrogem:')) {
-                            let wpMatch = html.match(/Willpower Cost.*?<span>(\\d+)/);
+                            let wpMatch = html.match(/Willpower Cost.*?<span>(\\\\d+)/);
                             let wp = wpMatch ? parseInt(wpMatch[1]) : 0;
-                            
-                            let ptMatch = html.match(/(?:Order|Chaos) Points.*?<span>(\\d+)/);
+                            let ptMatch = html.match(/(?:Order|Chaos) Points.*?<span>(\\\\d+)/);
                             let cp = ptMatch ? parseInt(ptMatch[1]) : 0;
-                            
                             let opts = [];
-                            let parts = html.split(/Lv\\.\\s*(\\d+)/);
+                            let parts = html.split(/Lv\\\\.\\\\s*(\\\\d+)/);
                             for(let j=1; j<parts.length; j+=2) {
                                 let lv = parseInt(parts[j]);
                                 let textAfter = parts[j+1] || '';
@@ -94,21 +81,17 @@ function initBookmarklet() {
                     console.error('Error scanning tooltip:', err);
                 }
             }
-            
             if(gems.length === 0) {
                 alert('Could not find any Astrogems. Make sure your Ark Grid is visible.');
                 overlay.remove();
                 return;
             }
-            
             let payload = encodeURIComponent(JSON.stringify(gems));
-            
             if ('${toolUrl}'.startsWith('file://')) {
-                alert('Success! Found ' + gems.length + ' gems.\\n\\nHOWEVER, Chrome blocks redirecting from a live website back to a local file:/// URL for security reasons.\\n\\nPlease push your code to GitHub Pages and drag the bookmark from your live site to test the automatic redirect!');
+                alert('Success! Found ' + gems.length + ' gems.\\\\n\\\\nHOWEVER, Chrome blocks redirecting from a live website back to a local file:/// URL for security reasons.\\\\n\\\\nPlease push your code to GitHub Pages and drag the bookmark from your live site to test the automatic redirect!');
                 overlay.remove();
                 return;
             }
-            
             window.location.href = '${toolUrl}?gems=' + payload;
         } catch(e) {
             alert('Fatal error: ' + e.message);
