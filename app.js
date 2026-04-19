@@ -118,6 +118,9 @@ function checkUrlData() {
             var minGemData = null;
             
             gems.forEach(function(g) {
+                // Ignore placeholder nodes or big nodes that don't have levels/stats
+                if (g.wp === 0 && g.cp === 0) return;
+
                 var wpScore = (4 - g.wp) * 2.4;
                 var cpScore = (g.cp - 4) * 5.14;
                 var opt1Score = 0, opt2Score = 0;
