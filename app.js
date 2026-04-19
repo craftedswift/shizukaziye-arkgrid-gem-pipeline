@@ -27,27 +27,18 @@ function scoreToBL(score) {
 
 // Generate the Bookmarklet code
 function initBookmarklet() {
-    var toolUrl = window.location.href.split('?')[0]; // Current URL without params
+    var toolUrl = window.location.href.split('?')[0];
     var rawJs = `javascript:(async function(){
         try {
             let gems = [];
-            let allTriggers = document.querySelectorAll('[data-melt-tooltip-trigger]');
-            let gridHeader = Array.from(document.querySelectorAll('h2, h3, div, span, p')).find(el => el.textContent.trim() === 'Ark Grid');
-            if (gridHeader) {
-                let container = gridHeader;
-                while(container && container.querySelectorAll('[data-melt-tooltip-trigger]').length < 20 && container !== document.body) {
-                    container = container.parentElement;
-                }
-                if (container && container !== document.body) {
-                    allTriggers = container.querySelectorAll('[data-melt-tooltip-trigger]');
-                }
-            }
-            const triggers = Array.from(allTriggers);
+            let triggers = Array.from(document.querySelectorAll('[data-melt-tooltip-trigger]'));
             if(triggers.length === 0) { alert('No gems found! Go to your character page on lostark.bible first.'); return; }
+            
             const overlay = document.createElement('div');
             overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999999;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;flex-direction:column;font-family:sans-serif;';
             overlay.innerHTML = '<div>Scanning Astrogems...</div><div id="bm-progress" style="font-size:16px;margin-top:10px;color:#80d0ff;">0 / ' + triggers.length + '</div>';
             document.body.appendChild(overlay);
+
             for(let i=0; i<triggers.length; i++) {
                 try {
                     let t = triggers[i];
@@ -59,12 +50,12 @@ function initBookmarklet() {
                     if(tooltip) {
                         let html = tooltip.innerHTML;
                         if(html.includes('Astrogem:')) {
-                            let wpMatch = html.match(/Willpower Cost.*?<span>(\\\\d+)/);
+                            let wpMatch = html.match(/Willpower Cost.*?<span>(\\d+)/);
                             let wp = wpMatch ? parseInt(wpMatch[1]) : 0;
-                            let ptMatch = html.match(/(?:Order|Chaos) Points.*?<span>(\\\\d+)/);
+                            let ptMatch = html.match(/(?:Order|Chaos) Points.*?<span>(\\d+)/);
                             let cp = ptMatch ? parseInt(ptMatch[1]) : 0;
                             let opts = [];
-                            let parts = html.split(/Lv\\\\.\\\\s*(\\\\d+)/);
+                            let parts = html.split(/Lv\\.\\s*(\\d+)/);
                             for(let j=1; j<parts.length; j+=2) {
                                 let lv = parseInt(parts[j]);
                                 let textAfter = parts[j+1] || '';
@@ -77,28 +68,22 @@ function initBookmarklet() {
                     }
                     t.dispatchEvent(new MouseEvent('pointerleave', {bubbles:true}));
                     t.dispatchEvent(new MouseEvent('mouseleave', {bubbles:true}));
-                } catch(err) {
-                    console.error('Error scanning tooltip:', err);
-                }
+                } catch(err) { console.error(err); }
             }
+            overlay.remove();
             if(gems.length === 0) {
                 alert('Could not find any Astrogems. Make sure your Ark Grid is visible.');
-                overlay.remove();
                 return;
             }
             let payload = encodeURIComponent(JSON.stringify(gems));
-            if ('${toolUrl}'.startsWith('file://')) {
-                alert('Success! Found ' + gems.length + ' gems.\\\\n\\\\nHOWEVER, Chrome blocks redirecting from a live website back to a local file:/// URL for security reasons.\\\\n\\\\nPlease push your code to GitHub Pages and drag the bookmark from your live site to test the automatic redirect!');
-                overlay.remove();
-                return;
-            }
             window.location.href = '${toolUrl}?gems=' + payload;
-        } catch(e) {
-            alert('Fatal error: ' + e.message);
-            const overlay = document.querySelector('div[style*="z-index:999999"]');
-            if (overlay) overlay.remove();
-        }
+        } catch(e) { alert('Error: ' + e.message); }
     })();`;
+    
+    var compressed = rawJs.replace(/\s*[\r\n]+\s*/g, ' ');
+    var btn = document.getElementById('bookmarklet-btn');
+    if (btn) btn.href = compressed;
+}
     
     // Minify slightly and set to href
     var compressed = rawJs.replace(/\s*[\r\n]+\s*/g, ' ');
