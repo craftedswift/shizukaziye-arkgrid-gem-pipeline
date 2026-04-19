@@ -20,10 +20,13 @@ const STAT_COEFFS = {
     'Stable': 0.50, 'Warp': 0.50
 };
 
-function scoreToBL(score) {
-    // Round to nearest whole number, then force it between 1 and 15
-    return Math.min(15, Math.max(1, Math.round(score)));
-}
+ function scoreToBL(score) {
+    const thresholds = [-8, 1, 9, 18, 27, 36, 45, 54, 63, 72];
+    for (let i = 0; i < thresholds.length; i++) {
+        if (score < thresholds[i]) return i;
+    }
+
+    return 10; 
 // Generate the Bookmarklet code
 function initBookmarklet() {
     var toolUrl = window.location.href.split('?')[0]; // Current URL without params
