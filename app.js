@@ -186,7 +186,7 @@ function checkUrlData() {
                         mathStr += '\n+ ' + minGemData.opt2Name + ' Lv.' + minGemData.opt2Lv + ' (' + minGemData.opt2Score.toFixed(2) + ')';
                     }
 
-                    alert('Successfully imported ' + gems.length + ' gems!\n\nWeakest Gem Score: ' + minScore.toFixed(2) + '\n\nMath Breakdown:\n' + mathStr + '\n\nSuggested Baseline Level set to: ' + bl);
+                    alert('Successfully imported ' + gems.length + ' gems!\n\nWeakest Gem Score: ' + minScore.toFixed(2) + '\n\nMath Breakdown:\n' + mathStr + '\n\nSuggested Baseline Level set to: ' + minScore.toFixed(0);
                 }, 500);
             }
         } catch(e) {
