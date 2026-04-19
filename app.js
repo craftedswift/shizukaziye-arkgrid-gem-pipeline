@@ -3,14 +3,29 @@ var astrogemData = {};
 var currentThreshold = '';
 var isRosterBound = false;
 var currentBL = 0;
+var isDPS = true;
 
 // ---- Bookmarklet & URL Parser ----
 
-// Stat English names & score coefficients from the scanner
-const STAT_COEFFS = {
+// DPS stats (ATK, Boss, AddDmg are valuable; support-only stats = 0)
+const STAT_COEFFS_DPS = {
     'Add Dmg': 1.85, 'Additional Damage': 1.85,
     'Boss Dmg': 2.55, 'Boss Damage': 2.55,
     'ATK': 1.00, 'Attack Power': 1.00,
+    'Order': 0, 'Chaos': 0,
+    'Brand': 0, 'Brand Power': 0,
+    'Ally Atk Buff': 0, 'Ally Attack Enh.': 0,
+    'Ally Dmg Buff': 0, 'Ally Damage Enh.': 0,
+    'Fortify': 0.50, 'Collapse': 0.50,
+    'Immutable': 0.50, 'Erode': 0.50,
+    'Stable': 0.50, 'Warp': 0.50
+};
+
+// Support stats (Brand, Ally buffs are valuable; DPS-only stats = 0)
+const STAT_COEFFS_SUPPORT = {
+    'Add Dmg': 0, 'Additional Damage': 0,
+    'Boss Dmg': 0, 'Boss Damage': 0,
+    'ATK': 0, 'Attack Power': 0,
     'Order': 0, 'Chaos': 0,
     'Brand': 1.00, 'Brand Power': 1.00,
     'Ally Atk Buff': 1.00, 'Ally Attack Enh.': 1.00,
@@ -20,9 +35,14 @@ const STAT_COEFFS = {
     'Stable': 0.50, 'Warp': 0.50
 };
 
+function getStatCoeff(name) {
+    var table = isDPS ? STAT_COEFFS_DPS : STAT_COEFFS_SUPPORT;
+    return (name in table) ? table[name] : 1;
+}
+
 function scoreToBL(score) {
-    // User requested the suggested baseline be the ceiling of the score (e.g. 13.2 -> 14)
-    return Math.ceil(score);
+    // Ceiling of the score, minimum 1
+    return Math.max(1, Math.ceil(score));
 }
 
 // Generate the Bookmarklet code
@@ -87,7 +107,7 @@ function checkUrlData() {
             var minGemData = null;
             
             gems.forEach(function(g) {
-                // Ignore placeholder nodes or big nodes that don't have levels/stats
+                // Ignore placeholder/big nodes with no stats
                 if (g.wp === 0 && g.cp === 0) return;
 
                 var wpScore = (4 - g.wp) * 2.4;
@@ -98,14 +118,12 @@ function checkUrlData() {
                 if (g.opts[0]) {
                     opt1Name = g.opts[0].name;
                     opt1Lv = g.opts[0].lv;
-                    var c1 = STAT_COEFFS[opt1Name] || 1;
-                    opt1Score = c1 * opt1Lv;
+                    opt1Score = getStatCoeff(opt1Name) * opt1Lv;
                 }
                 if (g.opts[1]) {
                     opt2Name = g.opts[1].name;
                     opt2Lv = g.opts[1].lv;
-                    var c2 = STAT_COEFFS[opt2Name] || 1;
-                    opt2Score = c2 * opt2Lv;
+                    opt2Score = getStatCoeff(opt2Name) * opt2Lv;
                 }
                 
                 var score = wpScore + cpScore + opt1Score + opt2Score;
@@ -391,6 +409,11 @@ function setupUI() {
         isRosterBound = e.target.checked;
         var minBL = getMinBL(currentThreshold, isRosterBound ? 'rb' : 'nrb');
         if (currentBL < minBL) setBL(minBL); else render();
+    });
+
+    // Role toggle (DPS / Support)
+    document.getElementById('role-toggle').addEventListener('change', function(e) {
+        isDPS = !e.target.checked;
     });
 
     // Slider
