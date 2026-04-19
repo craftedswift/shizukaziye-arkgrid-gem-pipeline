@@ -32,59 +32,80 @@ function scoreToBL(score) {
 function initBookmarklet() {
     var toolUrl = window.location.href.split('?')[0]; // Current URL without params
     var rawJs = `javascript:(async function(){
-        let gems = [];
-        const triggers = document.querySelectorAll('[data-melt-tooltip-trigger]');
-        if(triggers.length === 0) { alert('No gems found! Go to your character page on lostark.bible first.'); return; }
-        
-        const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999999;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;flex-direction:column;font-family:sans-serif;';
-        overlay.innerHTML = '<div>Scanning Astrogems...</div><div id="bm-progress" style="font-size:16px;margin-top:10px;color:#80d0ff;">0 / ' + triggers.length + '</div>';
-        document.body.appendChild(overlay);
-
-        for(let i=0; i<triggers.length; i++) {
-            let t = triggers[i];
-            document.getElementById('bm-progress').innerText = (i+1) + ' / ' + triggers.length;
-            t.dispatchEvent(new MouseEvent('pointerenter', {bubbles:true}));
-            t.dispatchEvent(new MouseEvent('mouseenter', {bubbles:true}));
-            await new Promise(r => setTimeout(r, 60)); // Wait for tooltip to render
+        try {
+            let gems = [];
+            const allTriggers = Array.from(document.querySelectorAll('[data-melt-tooltip-trigger]'));
+            const triggers = allTriggers.filter(t => t.querySelector('img') !== null);
             
-            let tooltip = document.querySelector('[data-melt-tooltip-content][data-state="open"]');
-            if(tooltip) {
-                let html = tooltip.innerHTML;
-                if(html.includes('Astrogem:')) {
-                    let wpMatch = html.match(/Willpower Cost.*?<span>(\\d+)/);
-                    let wp = wpMatch ? parseInt(wpMatch[1]) : 0;
+            if(triggers.length === 0) { alert('No gems found! Go to your character page on lostark.bible first.'); return; }
+            
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999999;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;flex-direction:column;font-family:sans-serif;';
+            overlay.innerHTML = '<div>Scanning Astrogems...</div><div id="bm-progress" style="font-size:16px;margin-top:10px;color:#80d0ff;">0 / ' + triggers.length + '</div>';
+            document.body.appendChild(overlay);
+
+            for(let i=0; i<triggers.length; i++) {
+                try {
+                    let t = triggers[i];
+                    document.getElementById('bm-progress').innerText = (i+1) + ' / ' + triggers.length;
+                    t.dispatchEvent(new MouseEvent('pointerenter', {bubbles:true}));
+                    t.dispatchEvent(new MouseEvent('mouseenter', {bubbles:true}));
                     
-                    let ptMatch = html.match(/(?:Order|Chaos) Points.*?<span>(\\d+)/);
-                    let cp = ptMatch ? parseInt(ptMatch[1]) : 0;
+                    await new Promise(r => setTimeout(r, 20)); 
                     
-                    let opts = [];
-                    let parts = html.split(/Lv\\.\\s*(\\d+)/);
-                    for(let j=1; j<parts.length; j+=2) {
-                        let lv = parseInt(parts[j]);
-                        let nameMatch = parts[j+1].match(/<span>([^<]+)/);
-                        let name = nameMatch ? nameMatch[1].trim() : 'Unknown';
-                        opts.push({name, lv});
+                    let tooltip = document.querySelector('[data-melt-tooltip-content][data-state="open"]');
+                    if(tooltip) {
+                        let html = tooltip.innerHTML;
+                        if(html.includes('Astrogem:')) {
+                            let wpMatch = html.match(/Willpower Cost.*?<span>(\\d+)/);
+                            let wp = wpMatch ? parseInt(wpMatch[1]) : 0;
+                            
+                            let ptMatch = html.match(/(?:Order|Chaos) Points.*?<span>(\\d+)/);
+                            let cp = ptMatch ? parseInt(ptMatch[1]) : 0;
+                            
+                            let opts = [];
+                            let parts = html.split(/Lv\\.\\s*(\\d+)/);
+                            for(let j=1; j<parts.length; j+=2) {
+                                let lv = parseInt(parts[j]);
+                                let textAfter = parts[j+1] || '';
+                                let nameMatch = textAfter.match(/<span>([^<]+)/);
+                                let name = nameMatch ? nameMatch[1].trim() : 'Unknown';
+                                opts.push({name, lv});
+                            }
+                            gems.push({ wp, cp, opts });
+                        }
                     }
-                    gems.push({ wp, cp, opts });
+                    t.dispatchEvent(new MouseEvent('pointerleave', {bubbles:true}));
+                    t.dispatchEvent(new MouseEvent('mouseleave', {bubbles:true}));
+                } catch(err) {
+                    console.error('Error scanning tooltip:', err);
                 }
             }
-            t.dispatchEvent(new MouseEvent('pointerleave', {bubbles:true}));
-            t.dispatchEvent(new MouseEvent('mouseleave', {bubbles:true}));
+            
+            if(gems.length === 0) {
+                alert('Could not find any Astrogems. Make sure your Ark Grid is visible.');
+                overlay.remove();
+                return;
+            }
+            
+            let payload = encodeURIComponent(JSON.stringify(gems));
+            
+            if ('${toolUrl}'.startsWith('file://')) {
+                alert('Success! Found ' + gems.length + ' gems.\\n\\nHOWEVER, Chrome blocks redirecting from a live website back to a local file:/// URL for security reasons.\\n\\nPlease push your code to GitHub Pages and drag the bookmark from your live site to test the automatic redirect!');
+                overlay.remove();
+                return;
+            }
+            
+            window.location.href = '${toolUrl}?gems=' + payload;
+        } catch(e) {
+            alert('Fatal error: ' + e.message);
+            const overlay = document.querySelector('div[style*="z-index:999999"]');
+            if (overlay) overlay.remove();
         }
-        
-        if(gems.length === 0) {
-            alert('Could not find any Astrogems. Make sure your Ark Grid is visible.');
-            overlay.remove();
-            return;
-        }
-        
-        let payload = encodeURIComponent(JSON.stringify(gems));
-        window.location.href = '${toolUrl}?gems=' + payload;
     })();`;
     
     // Minify slightly and set to href
-    var compressed = rawJs.replace(/\\n\\s+/g, ' ');
+    var compressed = rawJs.replace(/\s*[\r\n]+\s*/g, ' ');
     var btn = document.getElementById('bookmarklet-btn');
     if (btn) btn.href = compressed;
 }
