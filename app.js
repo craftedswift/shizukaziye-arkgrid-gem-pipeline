@@ -34,7 +34,21 @@ function initBookmarklet() {
     var rawJs = `javascript:(async function(){
         try {
             let gems = [];
-            const triggers = document.querySelectorAll('[data-melt-tooltip-trigger]');
+            
+            // Specifically target the Ark Grid section
+            let allTriggers = document.querySelectorAll('[data-melt-tooltip-trigger]');
+            let gridHeader = Array.from(document.querySelectorAll('h2, h3, div, span, p')).find(el => el.textContent.trim() === 'Ark Grid');
+            if (gridHeader) {
+                let container = gridHeader;
+                while(container && container.querySelectorAll('[data-melt-tooltip-trigger]').length < 20 && container !== document.body) {
+                    container = container.parentElement;
+                }
+                if (container && container !== document.body) {
+                    allTriggers = container.querySelectorAll('[data-melt-tooltip-trigger]');
+                }
+            }
+            
+            const triggers = Array.from(allTriggers);
             
             if(triggers.length === 0) { alert('No gems found! Go to your character page on lostark.bible first.'); return; }
             
@@ -118,23 +132,37 @@ function checkUrlData() {
         try {
             var gems = JSON.parse(decodeURIComponent(gemsData));
             var minScore = 999;
+            var minGemData = null;
             
             gems.forEach(function(g) {
                 var wpScore = (4 - g.wp) * 2.4;
                 var cpScore = (g.cp - 4) * 5.14;
                 var opt1Score = 0, opt2Score = 0;
+                var opt1Name = '', opt2Name = '', opt1Lv = 0, opt2Lv = 0;
                 
                 if (g.opts[0]) {
-                    var c1 = STAT_COEFFS[g.opts[0].name] || 1;
-                    opt1Score = c1 * g.opts[0].lv;
+                    opt1Name = g.opts[0].name;
+                    opt1Lv = g.opts[0].lv;
+                    var c1 = STAT_COEFFS[opt1Name] || 1;
+                    opt1Score = c1 * opt1Lv;
                 }
                 if (g.opts[1]) {
-                    var c2 = STAT_COEFFS[g.opts[1].name] || 1;
-                    opt2Score = c2 * g.opts[1].lv;
+                    opt2Name = g.opts[1].name;
+                    opt2Lv = g.opts[1].lv;
+                    var c2 = STAT_COEFFS[opt2Name] || 1;
+                    opt2Score = c2 * opt2Lv;
                 }
                 
                 var score = wpScore + cpScore + opt1Score + opt2Score;
-                if (score < minScore) minScore = score;
+                if (score < minScore) {
+                    minScore = score;
+                    minGemData = {
+                        wp: g.wp, wpScore: wpScore,
+                        cp: g.cp, cpScore: cpScore,
+                        opt1Name: opt1Name, opt1Lv: opt1Lv, opt1Score: opt1Score,
+                        opt2Name: opt2Name, opt2Lv: opt2Lv, opt2Score: opt2Score
+                    };
+                }
             });
             
             if (minScore !== 999) {
@@ -149,7 +177,17 @@ function checkUrlData() {
                 
                 // Optional: show a small toast or alert
                 setTimeout(function(){
-                    alert('Successfully imported ' + gems.length + ' gems!\\nWeakest gem score: ' + minScore.toFixed(2) + '\\nSuggested Baseline set to: ' + bl);
+                    var mathStr = 'WP ' + minGemData.wp + ' (' + minGemData.wpScore.toFixed(2) + ') + ' +
+                                  'CP ' + minGemData.cp + ' (' + minGemData.cpScore.toFixed(2) + ')';
+                    
+                    if (minGemData.opt1Name) {
+                        mathStr += '\n+ ' + minGemData.opt1Name + ' Lv.' + minGemData.opt1Lv + ' (' + minGemData.opt1Score.toFixed(2) + ')';
+                    }
+                    if (minGemData.opt2Name) {
+                        mathStr += '\n+ ' + minGemData.opt2Name + ' Lv.' + minGemData.opt2Lv + ' (' + minGemData.opt2Score.toFixed(2) + ')';
+                    }
+
+                    alert('Successfully imported ' + gems.length + ' gems!\n\nWeakest Gem Score: ' + minScore.toFixed(2) + '\n\nMath Breakdown:\n' + mathStr + '\n\nSuggested Baseline Level set to: ' + bl);
                 }, 500);
             }
         } catch(e) {
