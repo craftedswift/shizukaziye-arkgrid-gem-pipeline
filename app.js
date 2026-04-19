@@ -20,13 +20,14 @@ const STAT_COEFFS = {
     'Stable': 0.50, 'Warp': 0.50
 };
 
- function scoreToBL(score) {
+function scoreToBL(score) {
     const thresholds = [-8, 1, 9, 18, 27, 36, 45, 54, 63, 72];
     for (let i = 0; i < thresholds.length; i++) {
         if (score < thresholds[i]) return i;
     }
+    return 10;
+}
 
-    return 10; 
 // Generate the Bookmarklet code
 function initBookmarklet() {
     var toolUrl = window.location.href.split('?')[0]; // Current URL without params
@@ -186,7 +187,7 @@ function checkUrlData() {
                         mathStr += '\n+ ' + minGemData.opt2Name + ' Lv.' + minGemData.opt2Lv + ' (' + minGemData.opt2Score.toFixed(2) + ')';
                     }
 
-                    alert('Successfully imported ' + gems.length + ' gems!\n\nWeakest Gem Score: ' + minScore.toFixed(2) + '\n\nMath Breakdown:\n' + mathStr + '\n\nSuggested Baseline Level set to: ' + minScore.toFixed(0);
+                    alert('Successfully imported ' + gems.length + ' gems!\n\nWeakest Gem Score: ' + minScore.toFixed(2) + '\n\nMath Breakdown:\n' + mathStr + '\n\nSuggested Baseline Level set to: ' + bl);
                 }, 500);
             }
         } catch(e) {
