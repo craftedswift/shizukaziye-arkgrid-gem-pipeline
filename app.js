@@ -316,14 +316,14 @@ function getMinBL(threshold, mode) {
 
 function updateSliderFill(val) {
     var slider = document.getElementById('baseline-level');
-    var pct = (val / 10) * 100;
+    var pct = (val / 15) * 100;
     slider.style.setProperty('--pct', pct + '%');
 }
 
 function buildTicks() {
     var container = document.getElementById('slider-ticks');
     container.innerHTML = '';
-    for (var i = 0; i <= 10; i++) {
+    for (var i = 0; i <= 15; i++) {
         var span = document.createElement('span');
         span.className = 'slider-tick' + (i === currentBL ? ' active' : '');
         span.textContent = i;
@@ -342,7 +342,7 @@ function updateTickHighlight() {
 }
 
 function setBL(val) {
-    val = Math.max(0, Math.min(10, parseInt(val) || 0));
+    val = Math.max(0, Math.min(15, parseInt(val) || 0));
     currentBL = val;
     document.getElementById('baseline-level').value   = val;
     document.getElementById('baseline-display').textContent = val;
@@ -416,8 +416,9 @@ function render() {
     blData.gems.forEach(function(gem) {
         if (!gem) return;
 
+        var rarityKey = gem.type.rarity.toLowerCase(); // 'uncommon', 'rare', 'epic'
         var card = document.createElement('div');
-        card.className = 'gem-card';
+        card.className = 'gem-card rarity-' + rarityKey;
 
         var bucketsHtml = '';
         gem.buckets.forEach(function(b) {
@@ -432,7 +433,10 @@ function render() {
 
         card.innerHTML =
             '<div class="gem-header">' +
-                '<span class="gem-title">' + gem.type.rarity + ' (' + gem.type.cost + ')</span>' +
+                '<span class="gem-title">' +
+                    '<span class="rarity-dot rarity-dot-' + rarityKey + '"></span>' +
+                    gem.type.rarity + ' (' + gem.type.cost + ')' +
+                '</span>' +
                 '<span class="gem-ev">EV: ' + gem.ev + '</span>' +
             '</div>' +
             '<div class="gem-buckets">' + bucketsHtml + '</div>';
