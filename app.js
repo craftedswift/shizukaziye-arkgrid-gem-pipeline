@@ -23,7 +23,7 @@ const STAT_COEFFS = {
 function scoreToBL(score) {
     const thresholds = [-8, 1, 9, 18, 27, 36, 45, 54, 63, 72];
     for (let i = 0; i < thresholds.length; i++) {
-        if (score < thresholds[i]) return i;
+        if (score <= thresholds[i]) return i;
     }
     return 10;
 }
