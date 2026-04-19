@@ -652,68 +652,23 @@ dd {
     font-size: 0.9rem;
     color: var(--text-muted);
 }
-.scanner-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #63b3ed;
-    animation: scanpulse 1.2s ease-in-out infinite;
-    flex-shrink: 0;
+/* Bookmarklet Styles */
+.bookmarklet-panel {
+    background: linear-gradient(145deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.4));
+    border-left: 3px solid #80d0ff;
 }
-@keyframes scanpulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50%       { opacity: 0.4; transform: scale(0.7); }
+#bookmarklet-btn {
+    text-decoration: none;
+    background: linear-gradient(135deg, rgba(128, 208, 255, 0.2), rgba(128, 208, 255, 0.35));
+    border: 1px solid rgba(128, 208, 255, 0.5);
+    color: #80d0ff;
+    cursor: grab;
 }
-.scanner-results {
-    margin-top: 0.75rem;
+#bookmarklet-btn:active {
+    cursor: grabbing;
 }
-.scanner-stats {
-    display: flex;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-    margin-bottom: 1rem;
-}
-.scan-stat {
-    text-align: center;
-    min-width: 80px;
-}
-.scan-stat-val {
-    font-size: 1.8rem;
-    font-weight: 700;
-    color: #63b3ed;
-    line-height: 1;
-}
-.scan-stat-val.accent { color: var(--accent); }
-.scan-stat-lbl {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-top: 0.25rem;
-}
-.apply-bl-btn {
-    background: linear-gradient(135deg, rgba(240,192,64,0.2), rgba(240,192,64,0.35));
-    border: 1px solid rgba(240,192,64,0.5);
-    color: var(--accent);
-    padding: 0.65rem 1.4rem;
-    border-radius: 8px;
-    font-family: var(--font-main);
-    font-size: 0.95rem;
-    font-weight: 700;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
-}
-.apply-bl-btn:hover {
-    background: linear-gradient(135deg, rgba(240,192,64,0.35), rgba(240,192,64,0.5));
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(240,192,64,0.2);
-}
-.scanner-note {
-    margin-top: 0.9rem;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    opacity: 0.7;
+#bookmarklet-btn:hover {
+    background: linear-gradient(135deg, rgba(128, 208, 255, 0.35), rgba(128, 208, 255, 0.5));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(128, 208, 255, 0.2);
 }

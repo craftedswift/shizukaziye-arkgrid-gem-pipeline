@@ -156,44 +156,23 @@
                 </div>
             </section>
 
-            <!-- Scanner Panel -->
-            <section id="scanner-panel" class="panel glass scanner-panel">
+            <!-- Bookmarklet Panel -->
+            <section id="bookmarklet-panel" class="panel glass bookmarklet-panel">
                 <div class="scanner-header">
                     <div>
-                        <h2>🔍 Auto-Detect Baseline</h2>
-                        <p class="scanner-subtitle">Share your Lost Ark window — scanner reads all visible gems as you scroll.</p>
+                        <h2>🔗 Import from lostark.bible</h2>
+                        <div class="scanner-subtitle" style="margin-top: 0.5rem;">
+                            <ol style="margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.4rem;">
+                                <li>Drag the <strong>🪄 Scrape Gems</strong> button below to your browser's Bookmarks Bar.</li>
+                                <li>Go to <a href="https://lostark.bible" target="_blank" style="color:#80d0ff;">lostark.bible</a> and search for your character.</li>
+                                <li>Click the Bookmark while viewing your character's page to instantly scan and import your Baseline!</li>
+                            </ol>
+                        </div>
                     </div>
                     <div class="scanner-actions">
-                        <button id="scan-btn" class="scan-btn" onclick="startScan()">▶ Start Scan</button>
-                        <button id="stop-btn" class="scan-btn scan-stop" onclick="stopScan()" style="display:none">■ Stop</button>
+                        <a href="#" id="bookmarklet-btn" class="scan-btn" onclick="return false;" title="Drag me to your bookmarks bar!">🪄 Scrape Gems</a>
                     </div>
                 </div>
-                <div id="scanner-status" class="scanner-status" style="display:none">
-                    <div class="scanner-progress">
-                        <div class="scanner-dot"></div>
-                        <span id="scanner-msg">Initializing OpenCV...</span>
-                    </div>
-                    <div id="scanner-results" class="scanner-results" style="display:none">
-                        <div class="scanner-stats">
-                            <div class="scan-stat">
-                                <div class="scan-stat-val" id="scan-gem-count">0</div>
-                                <div class="scan-stat-lbl">Gems Found</div>
-                            </div>
-                            <div class="scan-stat">
-                                <div class="scan-stat-val" id="scan-min-score">—</div>
-                                <div class="scan-stat-lbl">Weakest Score</div>
-                            </div>
-                            <div class="scan-stat">
-                                <div class="scan-stat-val accent" id="scan-suggested-bl">—</div>
-                                <div class="scan-stat-lbl">Suggested BL</div>
-                            </div>
-                        </div>
-                        <button id="apply-bl-btn" class="apply-bl-btn" onclick="applySuggestedBL()" style="display:none">
-                            ✓ Apply BL to Analyzer
-                        </button>
-                    </div>
-                </div>
-                <p class="scanner-note">⚠️ Requires Chrome or Edge. Share only your Lost Ark window when prompted.</p>
             </section>
 
             <section class="dashboard">

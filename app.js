@@ -4,145 +4,137 @@ var currentThreshold = '';
 var isRosterBound = false;
 var currentBL = 0;
 
-// ---- Scanner State ----
-var scanWorker = null;
-var scanStream = null;
-var scanTrack  = null;
-var scanReader = null;
-var scanRunning = false;
-var suggestedBL = null;
-var scanWorkerReady = false;
+// ---- Bookmarklet & URL Parser ----
 
-function startScan() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-        alert('Screen capture is not supported in this browser.\nPlease use Chrome or Edge.');
-        return;
-    }
-    // Initialize worker first time
-    if (!scanWorker) {
-        document.getElementById('scanner-status').style.display = 'block';
-        document.getElementById('scanner-msg').textContent = 'Initializing OpenCV...';
-        document.getElementById('scan-btn').disabled = true;
+// Stat English names & score coefficients from the scanner
+const STAT_COEFFS = {
+    'Add Dmg': 1.85, 'Additional Damage': 1.85,
+    'Boss Dmg': 2.55, 'Boss Damage': 2.55,
+    'ATK': 1.00, 'Attack Power': 1.00,
+    'Order': 0, 'Chaos': 0,
+    'Brand': 1.00, 'Brand Power': 1.00,
+    'Ally Atk Buff': 1.00, 'Ally Attack Enh.': 1.00,
+    'Ally Dmg Buff': 1.00, 'Ally Damage Enh.': 1.00,
+    'Fortify': 0.50, 'Collapse': 0.50,
+    'Immutable': 0.50, 'Erode': 0.50,
+    'Stable': 0.50, 'Warp': 0.50
+};
 
-        scanWorker = new Worker('scanner-worker.js');
-        scanWorker.onmessage = handleWorkerMsg;
-        scanWorker.onerror   = function(e) {
-            setScanMsg('Worker error: ' + e.message, true);
-            resetScanUI();
-        };
-        scanWorker.postMessage({ type: 'init' });
-    } else if (scanWorkerReady) {
-        beginCapture();
+function scoreToBL(score) {
+    const thresholds = [-8, 1, 9, 18, 27, 36, 45, 54, 63, 72];
+    for (let i = 0; i < thresholds.length; i++) {
+        if (score < thresholds[i]) return i;
     }
+    return 10;
 }
 
-function handleWorkerMsg(e) {
-    var d = e.data;
-    if (d.type === 'loading') {
-        setScanMsg('Loading templates... ' + d.loaded + '/' + d.total);
-    }
-    else if (d.type === 'ready') {
-        scanWorkerReady = true;
-        setScanMsg('Ready — share your Lost Ark window.');
-        document.getElementById('scan-btn').disabled = false;
-        beginCapture();
-    }
-    else if (d.type === 'error') {
-        setScanMsg('Error: ' + d.message, true);
-        resetScanUI();
-    }
-    else if (d.type === 'frame:done') {
-        if (d.result && d.gems && d.gems.length > 0) {
-            document.getElementById('scanner-results').style.display = 'block';
-            document.getElementById('scan-gem-count').textContent = d.gems.length;
-            document.getElementById('scan-min-score').textContent  = d.minScore !== null ? d.minScore.toFixed(1) : '—';
-            document.getElementById('scan-suggested-bl').textContent = d.suggestedBL !== null ? d.suggestedBL : '—';
-            if (d.suggestedBL !== null) {
-                suggestedBL = d.suggestedBL;
-                document.getElementById('apply-bl-btn').style.display = 'inline-flex';
+// Generate the Bookmarklet code
+function initBookmarklet() {
+    var toolUrl = window.location.href.split('?')[0]; // Current URL without params
+    var rawJs = `javascript:(async function(){
+        let gems = [];
+        const triggers = document.querySelectorAll('[data-melt-tooltip-trigger]');
+        if(triggers.length === 0) { alert('No gems found! Go to your character page on lostark.bible first.'); return; }
+        
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999999;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;flex-direction:column;font-family:sans-serif;';
+        overlay.innerHTML = '<div>Scanning Astrogems...</div><div id="bm-progress" style="font-size:16px;margin-top:10px;color:#80d0ff;">0 / ' + triggers.length + '</div>';
+        document.body.appendChild(overlay);
+
+        for(let i=0; i<triggers.length; i++) {
+            let t = triggers[i];
+            document.getElementById('bm-progress').innerText = (i+1) + ' / ' + triggers.length;
+            t.dispatchEvent(new MouseEvent('pointerenter', {bubbles:true}));
+            t.dispatchEvent(new MouseEvent('mouseenter', {bubbles:true}));
+            await new Promise(r => setTimeout(r, 60)); // Wait for tooltip to render
+            
+            let tooltip = document.querySelector('[data-melt-tooltip-content][data-state="open"]');
+            if(tooltip) {
+                let html = tooltip.innerHTML;
+                if(html.includes('Astrogem:')) {
+                    let wpMatch = html.match(/Willpower Cost.*?<span>(\\d+)/);
+                    let wp = wpMatch ? parseInt(wpMatch[1]) : 0;
+                    
+                    let ptMatch = html.match(/(?:Order|Chaos) Points.*?<span>(\\d+)/);
+                    let cp = ptMatch ? parseInt(ptMatch[1]) : 0;
+                    
+                    let opts = [];
+                    let parts = html.split(/Lv\\.\\s*(\\d+)/);
+                    for(let j=1; j<parts.length; j+=2) {
+                        let lv = parseInt(parts[j]);
+                        let nameMatch = parts[j+1].match(/<span>([^<]+)/);
+                        let name = nameMatch ? nameMatch[1].trim() : 'Unknown';
+                        opts.push({name, lv});
+                    }
+                    gems.push({ wp, cp, opts });
+                }
             }
-            setScanMsg('Scanning... scroll through your gem bag slowly.');
+            t.dispatchEvent(new MouseEvent('pointerleave', {bubbles:true}));
+            t.dispatchEvent(new MouseEvent('mouseleave', {bubbles:true}));
         }
-        // send next frame
-        if (scanRunning) readNextFrame();
-    }
-    else if (d.type === 'reset:done') {
-        readNextFrame();
-    }
-}
-
-async function beginCapture() {
-    try {
-        setScanMsg('Waiting for screen share permission...');
-        var stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false });
-        scanStream = stream;
-        scanTrack  = stream.getVideoTracks()[0];
-        var processor = new MediaStreamTrackProcessor({ track: scanTrack });
-        scanReader = processor.readable.getReader();
-
-        // Reset worker state
-        scanWorker.postMessage({ type: 'reset' });
-        scanRunning = true;
-
-        document.getElementById('scan-btn').style.display  = 'none';
-        document.getElementById('stop-btn').style.display  = 'inline-flex';
-        setScanMsg('Scanning... scroll through your gem bag slowly.');
-
-        // Listen for user stopping share
-        scanTrack.addEventListener('ended', stopScan);
-
-    } catch(err) {
-        if (err.name === 'NotAllowedError') {
-            setScanMsg('Screen share was cancelled.', false);
-            document.getElementById('scan-btn').disabled = false;
-        } else {
-            setScanMsg('Error: ' + err.message, true);
+        
+        if(gems.length === 0) {
+            alert('Could not find any Astrogems. Make sure your Ark Grid is visible.');
+            overlay.remove();
+            return;
         }
-    }
+        
+        let payload = encodeURIComponent(JSON.stringify(gems));
+        window.location.href = '${toolUrl}?gems=' + payload;
+    })();`;
+    
+    // Minify slightly and set to href
+    var compressed = rawJs.replace(/\\n\\s+/g, ' ');
+    var btn = document.getElementById('bookmarklet-btn');
+    if (btn) btn.href = compressed;
 }
 
-function readNextFrame() {
-    if (!scanReader || !scanRunning) return;
-    scanReader.read().then(function(result) {
-        if (result.done || !result.value) { stopScan(); return; }
-        scanWorker.postMessage({ type: 'frame', frame: result.value }, [result.value]);
-    }).catch(function() { stopScan(); });
-}
-
-function stopScan() {
-    scanRunning = false;
-    if (scanTrack) { scanTrack.stop(); scanTrack = null; }
-    if (scanStream) { scanStream.getTracks().forEach(function(t){ t.stop(); }); scanStream = null; }
-    scanReader = null;
-    document.getElementById('scan-btn').style.display  = 'inline-flex';
-    document.getElementById('stop-btn').style.display  = 'none';
-    document.getElementById('scan-btn').disabled = false;
-    if (suggestedBL !== null) {
-        setScanMsg('Scan complete. ' + document.getElementById('scan-gem-count').textContent + ' gems found. Suggested BL: ' + suggestedBL);
-    } else {
-        setScanMsg('Scan stopped. Open your Astrogem bag in-game and try again.');
-    }
-}
-
-function applySuggestedBL() {
-    if (suggestedBL !== null) {
-        setBL(suggestedBL);
-        // Scroll to controls
-        document.querySelector('.controls').scrollIntoView({ behavior: 'smooth' });
-    }
-}
-
-function resetScanUI() {
-    document.getElementById('scan-btn').style.display  = 'inline-flex';
-    document.getElementById('stop-btn').style.display  = 'none';
-    document.getElementById('scan-btn').disabled = false;
-}
-
-function setScanMsg(msg, isError) {
-    var el = document.getElementById('scanner-msg');
-    if (el) {
-        el.textContent = msg;
-        el.style.color = isError ? '#f87171' : '';
+// Check if we arrived via Bookmarklet redirect
+function checkUrlData() {
+    var params = new URLSearchParams(window.location.search);
+    var gemsData = params.get('gems');
+    
+    if (gemsData) {
+        try {
+            var gems = JSON.parse(decodeURIComponent(gemsData));
+            var minScore = 999;
+            
+            gems.forEach(function(g) {
+                var wpScore = (4 - g.wp) * 2.4;
+                var cpScore = (g.cp - 4) * 5.14;
+                var opt1Score = 0, opt2Score = 0;
+                
+                if (g.opts[0]) {
+                    var c1 = STAT_COEFFS[g.opts[0].name] || 1;
+                    opt1Score = c1 * g.opts[0].lv;
+                }
+                if (g.opts[1]) {
+                    var c2 = STAT_COEFFS[g.opts[1].name] || 1;
+                    opt2Score = c2 * g.opts[1].lv;
+                }
+                
+                var score = wpScore + cpScore + opt1Score + opt2Score;
+                if (score < minScore) minScore = score;
+            });
+            
+            if (minScore !== 999) {
+                var bl = scoreToBL(minScore);
+                setBL(bl);
+                
+                // Clear the URL so it doesn't look messy
+                window.history.replaceState({}, document.title, window.location.pathname);
+                
+                // Scroll to controls
+                document.querySelector('.controls').scrollIntoView({ behavior: 'smooth' });
+                
+                // Optional: show a small toast or alert
+                setTimeout(function(){
+                    alert('Successfully imported ' + gems.length + ' gems!\\nWeakest gem score: ' + minScore.toFixed(2) + '\\nSuggested Baseline set to: ' + bl);
+                }, 500);
+            }
+        } catch(e) {
+            console.error('Failed to parse gems', e);
+        }
     }
 }
 
@@ -207,7 +199,9 @@ function init() {
         document.getElementById('app').style.display = 'block';
 
         setupUI();
+        initBookmarklet();
         render();
+        checkUrlData();
     } catch (err) {
         console.error(err);
         document.getElementById('loader').innerHTML =
