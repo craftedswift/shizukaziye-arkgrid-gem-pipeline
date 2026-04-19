@@ -84,12 +84,6 @@ function initBookmarklet() {
     var btn = document.getElementById('bookmarklet-btn');
     if (btn) btn.href = compressed;
 }
-    
-    // Minify slightly and set to href
-    var compressed = rawJs.replace(/\s*[\r\n]+\s*/g, ' ');
-    var btn = document.getElementById('bookmarklet-btn');
-    if (btn) btn.href = compressed;
-}
 
 // Check if we arrived via Bookmarklet redirect
 function checkUrlData() {
