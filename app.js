@@ -34,8 +34,7 @@ function initBookmarklet() {
     var rawJs = `javascript:(async function(){
         try {
             let gems = [];
-            const allTriggers = Array.from(document.querySelectorAll('[data-melt-tooltip-trigger]'));
-            const triggers = allTriggers.filter(t => t.querySelector('img') !== null);
+            const triggers = document.querySelectorAll('[data-melt-tooltip-trigger]');
             
             if(triggers.length === 0) { alert('No gems found! Go to your character page on lostark.bible first.'); return; }
             
@@ -51,7 +50,7 @@ function initBookmarklet() {
                     t.dispatchEvent(new MouseEvent('pointerenter', {bubbles:true}));
                     t.dispatchEvent(new MouseEvent('mouseenter', {bubbles:true}));
                     
-                    await new Promise(r => setTimeout(r, 20)); 
+                    await new Promise(r => setTimeout(r, 10)); 
                     
                     let tooltip = document.querySelector('[data-melt-tooltip-content][data-state="open"]');
                     if(tooltip) {
