@@ -103,71 +103,103 @@ function checkUrlData() {
     if (gemsData) {
         try {
             var gems = JSON.parse(decodeURIComponent(gemsData));
-            var minScore = 999;
-            var minGemData = null;
             
+            // Score every valid gem
+            var scored = [];
             gems.forEach(function(g) {
-                // Ignore placeholder/big nodes with no stats
-                if (g.wp === 0 && g.cp === 0) return;
+                if (g.wp === 0 && g.cp === 0) return; // skip big/placeholder nodes
 
-                var wpScore = (4 - g.wp) * 2.4;
-                var cpScore = (g.cp - 4) * 5.14;
-                var opt1Score = 0, opt2Score = 0;
+                var wpScore  = (4 - g.wp) * 2.4;
+                var cpScore  = (g.cp - 4) * 5.14;
                 var opt1Name = '', opt2Name = '', opt1Lv = 0, opt2Lv = 0;
-                
+                var opt1Score = 0, opt2Score = 0;
+
                 if (g.opts[0]) {
-                    opt1Name = g.opts[0].name;
-                    opt1Lv = g.opts[0].lv;
+                    opt1Name  = g.opts[0].name;
+                    opt1Lv    = g.opts[0].lv;
                     opt1Score = getStatCoeff(opt1Name) * opt1Lv;
                 }
                 if (g.opts[1]) {
-                    opt2Name = g.opts[1].name;
-                    opt2Lv = g.opts[1].lv;
+                    opt2Name  = g.opts[1].name;
+                    opt2Lv    = g.opts[1].lv;
                     opt2Score = getStatCoeff(opt2Name) * opt2Lv;
                 }
-                
-                var score = wpScore + cpScore + opt1Score + opt2Score;
-                if (score < minScore) {
-                    minScore = score;
-                    minGemData = {
-                        wp: g.wp, wpScore: wpScore,
-                        cp: g.cp, cpScore: cpScore,
-                        opt1Name: opt1Name, opt1Lv: opt1Lv, opt1Score: opt1Score,
-                        opt2Name: opt2Name, opt2Lv: opt2Lv, opt2Score: opt2Score
-                    };
-                }
-            });
-            
-            if (minScore !== 999) {
-                var bl = scoreToBL(minScore);
-                setBL(bl);
-                
-                // Clear the URL so it doesn't look messy
-                window.history.replaceState({}, document.title, window.location.pathname);
-                
-                // Scroll to controls
-                document.querySelector('.controls').scrollIntoView({ behavior: 'smooth' });
-                
-                // Optional: show a small toast or alert
-                setTimeout(function(){
-                    var mathStr = 'WP ' + minGemData.wp + ' (' + minGemData.wpScore.toFixed(2) + ') + ' +
-                                  'CP ' + minGemData.cp + ' (' + minGemData.cpScore.toFixed(2) + ')';
-                    
-                    if (minGemData.opt1Name) {
-                        mathStr += '\n+ ' + minGemData.opt1Name + ' Lv.' + minGemData.opt1Lv + ' (' + minGemData.opt1Score.toFixed(2) + ')';
-                    }
-                    if (minGemData.opt2Name) {
-                        mathStr += '\n+ ' + minGemData.opt2Name + ' Lv.' + minGemData.opt2Lv + ' (' + minGemData.opt2Score.toFixed(2) + ')';
-                    }
 
-                    alert('Successfully imported ' + gems.length + ' gems!\n\nWeakest Gem Score: ' + minScore.toFixed(2) + '\n\nMath Breakdown:\n' + mathStr + '\n\nSuggested Baseline Level set to: ' + bl);
-                }, 500);
+                var total = wpScore + cpScore + opt1Score + opt2Score;
+                scored.push({
+                    score: total,
+                    wp: g.wp, wpScore: wpScore,
+                    cp: g.cp, cpScore: cpScore,
+                    opt1Name: opt1Name, opt1Lv: opt1Lv, opt1Score: opt1Score,
+                    opt2Name: opt2Name, opt2Lv: opt2Lv, opt2Score: opt2Score
+                });
+            });
+
+            if (scored.length === 0) return;
+
+            // Sort ascending — weakest first
+            scored.sort(function(a, b) { return a.score - b.score; });
+
+            var bottom3 = scored.slice(0, Math.min(3, scored.length));
+            var thirdWorstScore = bottom3[bottom3.length - 1].score;
+
+            // Suggested BL = one level above the 3rd worst gem (an improvement for all 3)
+            var suggestedBL = Math.max(1, Math.floor(thirdWorstScore) + 1);
+
+            // Cap: find the highest BL that takes ≤ 5 weeks (to avoid an unrealistic grind)
+            var mode = isRosterBound ? 'rb' : 'nrb';
+            var tableData = astrogemData[currentThreshold] && astrogemData[currentThreshold][mode];
+            if (tableData) {
+                var blKeys = Object.keys(tableData).map(Number).sort(function(a, b) { return a - b; });
+                
+                // Find max BL with <= 5 weeks
+                var maxFiveWeekBL = blKeys[0]; // start from lowest available
+                blKeys.forEach(function(bl) {
+                    var pipeline = tableData[bl] && tableData[bl].pipeline;
+                    if (pipeline) {
+                        var wks = parseFloat(pipeline.weeks);
+                        if (!isNaN(wks) && wks <= 5) {
+                            maxFiveWeekBL = bl;
+                        }
+                    }
+                });
+
+                // If the score-based suggestion would take > 5 weeks, cap it
+                var blPipeline = tableData[suggestedBL] && tableData[suggestedBL].pipeline;
+                if (blPipeline) {
+                    var suggestedWks = parseFloat(blPipeline.weeks);
+                    if (!isNaN(suggestedWks) && suggestedWks > 5) {
+                        suggestedBL = maxFiveWeekBL;
+                    }
+                }
             }
+
+            suggestedBL = Math.max(1, Math.min(15, suggestedBL));
+            setBL(suggestedBL);
+
+            // Clear the URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+            document.querySelector('.controls').scrollIntoView({ behavior: 'smooth' });
+
+            setTimeout(function() {
+                var msg = 'Imported ' + scored.length + ' gem' + (scored.length !== 1 ? 's' : '') + '!\n\n';
+                msg += '── Bottom 3 Gem Scores ──\n';
+                bottom3.forEach(function(g, idx) {
+                    var breakdown = 'WP' + g.wp + '(' + g.wpScore.toFixed(1) + ') + CP' + g.cp + '(' + g.cpScore.toFixed(1) + ')';
+                    if (g.opt1Name) breakdown += ' + ' + g.opt1Name + ' Lv.' + g.opt1Lv + '(' + g.opt1Score.toFixed(1) + ')';
+                    if (g.opt2Name) breakdown += ' + ' + g.opt2Name + ' Lv.' + g.opt2Lv + '(' + g.opt2Score.toFixed(1) + ')';
+                    msg += '#' + (idx + 1) + ': Score ' + g.score.toFixed(2) + '\n     ' + breakdown + '\n';
+                });
+                msg += '\n✅ Suggested Baseline Level: ' + suggestedBL;
+                alert(msg);
+            }, 500);
+
         } catch(e) {
             console.error('Failed to parse gems', e);
         }
     }
 }
+
 
 function toggleGlossary(open) {
     var overlay = document.getElementById('glossary-overlay');
